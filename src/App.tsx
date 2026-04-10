@@ -10,6 +10,7 @@ import {
 } from './game';
 
 const TICK_MS = 160;
+const HIGH_SCORE_KEY = 'snake-high-score';
 
 const KEY_TO_DIRECTION: Record<string, Direction> = {
   ArrowUp: 'up',
@@ -26,8 +27,23 @@ const KEY_TO_DIRECTION: Record<string, Direction> = {
   D: 'right',
 };
 
+const HEAD_ROTATION: Record<Direction, string> = {
+  up: 'rotate(-90deg)',
+  down: 'rotate(90deg)',
+  left: 'rotate(180deg)',
+  right: 'rotate(0deg)',
+};
+
 function App() {
   const [game, setGame] = useState<GameState>(() => createInitialGameState());
+  const [highScore, setHighScore] = useState(() => {
+    if (typeof window === 'undefined') {
+      return 0;
+    }
+
+    const storedValue = window.sessionStorage.getItem(HIGH_SCORE_KEY);
+    return storedValue ? Number(storedValue) || 0 : 0;
+  });
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -59,6 +75,15 @@ function App() {
     return () => window.clearInterval(timer);
   }, [game.status]);
 
+  useEffect(() => {
+    if (game.score <= highScore) {
+      return;
+    }
+
+    setHighScore(game.score);
+    window.sessionStorage.setItem(HIGH_SCORE_KEY, String(game.score));
+  }, [game.score, highScore]);
+
   const snakeCells = new Set(game.snake.map(({ x, y }) => `${x},${y}`));
   const gridCells: Position[] = [];
 
@@ -78,9 +103,10 @@ function App() {
     <main className="app-shell">
       <section className="game-card" aria-label="Snake game">
         <div className="game-header">
-          <div>
+          <div className="score-block">
             <p className="eyebrow">Classic Snake</p>
             <h1>Score: {game.score}</h1>
+            <p className="high-score">High score this session: {highScore}</p>
           </div>
           <button type="button" className="restart-button" onClick={restart}>
             Restart
@@ -114,7 +140,14 @@ function App() {
               .filter(Boolean)
               .join(' ');
 
-            return <div key={key} className={className} aria-hidden="true" />;
+            return (
+              <div
+                key={key}
+                className={className}
+                style={isHead ? { transform: HEAD_ROTATION[game.direction] } : undefined}
+                aria-hidden="true"
+              />
+            );
           })}
         </div>
 
